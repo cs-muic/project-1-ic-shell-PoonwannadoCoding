@@ -17,18 +17,31 @@ int main() {
         printf("icsh $ ");
         fgets(buffer, 255, stdin);
 		
+		char *prevCommand = strcpy(buffer, prevCommand);
+
 		char *token = strtok(buffer, " "); // split the input
 		
-		if (strcmp(token, "echo") == 0){
-			token = strtok(NULL, " ");
-			while(token != NULL){
-				printf("%s ", token);
-				token = strtok(NULL, " ");
-			}
+		if(strcmp(token, "!!")){
+			printf("%s/n",getCommand(prevCommand));
+		} else {
+			getCommand(buffer);
 		}
         
     }
 }
 
 
+int getCommand(char *args){
 
+	char *token = strtok(args, " ");
+
+	if (strcmp(token, "echo") == 0){
+		while(token != NULL){
+			printf("%s ", token);
+			token = strtok(NULL, " ");
+		}
+
+	}
+	return 0;
+
+}
