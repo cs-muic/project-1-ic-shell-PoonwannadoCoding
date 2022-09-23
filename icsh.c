@@ -17,7 +17,12 @@ int main() {
         printf("icsh $ ");
         fgets(buffer, 255, stdin);
 		char *token = strtok(buffer, " ");
-		
-        printf("you said: %s\n", token);
+		if (strcmp(token, "echo") == 0 ){
+			while(token != NULL){
+				printf("%s ", token);
+				token = strtok(NULL, " ");
+			}
+		}
+        
     }
 }
