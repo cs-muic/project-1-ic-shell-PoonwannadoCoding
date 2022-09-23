@@ -1,17 +1,23 @@
 /* ICCS227: Project 1: icsh
- * Name:
- * StudentID:
+ * Name: Worawit Penglam
+ * StudentID: 6281453
  */
 
 #include "stdio.h"
+#include <stdbool.h>
+#include <string.h>
 
 #define MAX_CMD_BUFFER 255
 
 int main() {
     char buffer[MAX_CMD_BUFFER];
-    while (1) {
+	bool isStart = true;
+	printf("Starting IC shell\n");
+    while (isStart) {
         printf("icsh $ ");
         fgets(buffer, 255, stdin);
-        printf("you said: %s\n", buffer);
+		char *token = strtok(buffer, " ");
+		
+        printf("you said: %s\n", token);
     }
 }
