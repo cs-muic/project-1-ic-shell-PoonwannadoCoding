@@ -89,7 +89,7 @@ char ** splitToken(char * args){
 int command(char ** args){
 
 
-	if (args[0] == NULL){
+	if (args == NULL){
 		return 1;
 	}
 	else if ( strcmp(args[0], "echo") == 0){
@@ -101,7 +101,7 @@ int command(char ** args){
 		return 1;
 	}
 	else {
-		printf("Un known command\n");
+		printf("Bad command\n");
 	}
 	return 1;
 
