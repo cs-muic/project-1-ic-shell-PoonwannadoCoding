@@ -21,7 +21,6 @@ int main() {
 	char** rec;
 	char history[MAX_CMD_BUFFER];
 	int active = 1;
-	int index = 0;
 
 	printf("Starting IC shell\n");
     while (active) {
@@ -41,7 +40,12 @@ int main() {
 
 		if(strcmp(rec[0], "exit") == 0){
 			printf("Bye \n");
-			return atoi(rec[1]);
+			int arg1 = atoi(rec[1]);
+			if (arg1 > 255){
+				return arg1 >> 8;
+			} else{
+			return arg1;
+			}
 		}
 
 		else if(strcmp(rec[0], "!!\n") == 0 && strcmp(history, "!!\n") != 0){
@@ -77,7 +81,7 @@ char ** splitToken(char * args){
 		}
 		token = strtok(NULL, " ");
 	}
-	tokens[index] == NULL;
+	
 	return tokens;
 }
 
@@ -89,10 +93,11 @@ int command(char ** args){
 		return 1;
 	}
 	else if ( strcmp(args[0], "echo") == 0){
-		for(int i = 1; args[i] != NULL; i++){
-			printf("%s ", args[i]);
+		printf("%s", args[1]);
+		for(int i = 2; args[i] != NULL; i++){
+			printf(" %s", args[i]);
 		}
-		printf("\n");
+		
 		return 1;
 	}
 	else {
