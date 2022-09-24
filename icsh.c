@@ -19,7 +19,7 @@ char ** splitToken(char *);
 int main() {
     char buffer[MAX_CMD_BUFFER];
 	char** rec;
-	char * history = (char *)malloc(MAX_TOKEN);
+	char history[MAX_CMD_BUFFER];
 	int active = 1;
 	int index = 0;
 
@@ -28,24 +28,26 @@ int main() {
 
         printf("icsh $ ");
         fgets(buffer, 255, stdin);
-		rec = splitToken(buffer);
-			
 
-		if (strcmp(rec[0], "!!\n") != 0){
+
+
+		if (strcmp(buffer, "!!\n") != 0){
 			strcpy(history, buffer);
 			
 		}
+		
+
+		rec = splitToken(buffer);
 
 		if(strcmp(rec[0], "exit") == 0){
 			printf("Bye \n");
-			return (int) rec[1];
+			return atoi(rec[1]);
 		}
 
 		else if(strcmp(rec[0], "!!\n") == 0 && strcmp(history, "!!\n") != 0){
 
-			printf("!! => %s \n", history);
-			char ** prevTok = splitToken(history);
-			active = command(prevTok);
+			char ** prevCommand = splitToken(history);
+			active = command(prevCommand);
 		}
 
 
@@ -81,6 +83,7 @@ char ** splitToken(char * args){
 
 
 int command(char ** args){
+
 
 	if (args[0] == NULL){
 		return 1;
