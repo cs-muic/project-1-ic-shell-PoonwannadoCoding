@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 
+
 int command(char **);
 char ** splitToken(char *);
 
@@ -26,14 +27,13 @@ int main(int argc, char *argv[]) {
 	int i = 0;
 
 	
-
 	printf("Starting IC shell\n");
     while (active) {
 		
 
         printf("icsh $ ");
 
-		if (argc > 0){
+		if (argc > 1){
 			
 			char total[MAX_CMD_BUFFER][MAX_LINE_LENGTEH];
 			FILE * textFile;
@@ -51,7 +51,6 @@ int main(int argc, char *argv[]) {
 			strcpy(buffer, total[i]);
 			i++;
 			
-
 		}
 
 		else {
@@ -127,6 +126,7 @@ int command(char ** args){
 		
 		return 1;
 	}
+
 	else {
 		printf("Bad command\n");
 	}
