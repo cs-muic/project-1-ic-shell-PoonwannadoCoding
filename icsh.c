@@ -11,7 +11,7 @@
 
 int command(char **);
 char ** splitToken(char *);
-char ** readFile(char *);
+
 
 #define MAX_LINE_LENGTEH 100
 #define MAX_CMD_BUFFER 255
@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 	char history[MAX_CMD_BUFFER];
 	int active = 1;
 	int i = 0;
-	
+
 	
 
 	printf("Starting IC shell\n");
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
         printf("icsh $ ");
 
-		if (argc > 1){
+		if (argc > 0){
 			
 			char total[MAX_CMD_BUFFER][MAX_LINE_LENGTEH];
 			FILE * textFile;
@@ -44,27 +44,26 @@ int main(int argc, char *argv[]) {
 			}
 			while (!feof(textFile) && !ferror(textFile)) {
 				if(fgets(total[index], MAX_LINE_LENGTEH, textFile) != NULL){
-					index++;
-		
+					index++;	
 				}
 			}
 			fclose(textFile);
 			strcpy(buffer, total[i]);
 			i++;
+			
 
 		}
 
 		else {
 			fgets(buffer, 255, stdin);
 		}
-		printf("buffer => %s", buffer);
+	
 
 		if (strcmp(buffer, "!!\n") != 0){
 			strcpy(history, buffer);
 			
 		}
 		
-
 		rec = splitToken(buffer);
 
 		if(strcmp(rec[0], "exit") == 0){
@@ -77,7 +76,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		else if(strcmp(rec[0], "!!\n") == 0 && strcmp(history, "!!\n") != 0){
+		else if((strcmp(rec[0], "!!\n") == 0 && strcmp(history, "!!\n") != 0)|| strcmp(rec[0], "!!") == 0){
 
 			char ** prevCommand = splitToken(history);
 			active = command(prevCommand);
@@ -92,31 +91,11 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-char ** readFile(char * filename){
-	char ** total[MAX_CMD_BUFFER][MAX_LINE_LENGTEH];
-	FILE * textFile;
-	int index = 0;
-	textFile = fopen(filename, "r");
-	if (textFile == NULL){
-		return NULL;
-	}
-	while (!feof(textFile) && !ferror(textFile)) {
-		if(fgets(total[index], MAX_LINE_LENGTEH, textFile) != NULL){
-			index++;
-		
-		}
-	}
-	fclose(textFile);
-	
-	printf("read this shit => %s \n", total[0]);
-	
-	return total;
-}
 
 char ** splitToken(char * args){
 	
 	int index = 0;
-	char ** tokens = malloc(MAX_TOKEN * sizeof(char *));
+	char ** tokens = malloc(MAX_TOKEN+1 * sizeof(char *));
 	char * token;
 
 	token = strtok(args, " ");
