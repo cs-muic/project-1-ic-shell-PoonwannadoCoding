@@ -4,15 +4,16 @@
  */
 
 #include "stdio.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include<sys/wait.h>
 
-
-int command(char **);
+int command(char **, char *);
 char ** splitToken(char *);
-
+int exe(char *);
 
 #define MAX_LINE_LENGTEH 100
 #define MAX_CMD_BUFFER 255
@@ -22,6 +23,7 @@ char ** splitToken(char *);
 int main(int argc, char *argv[]) {
     char buffer[MAX_CMD_BUFFER];
 	char** rec;
+
 	char history[MAX_CMD_BUFFER];
 	int active = 1;
 	int i = 0;
@@ -55,6 +57,7 @@ int main(int argc, char *argv[]) {
 
 		else {
 			fgets(buffer, 255, stdin);
+			
 		}
 	
 
@@ -62,6 +65,7 @@ int main(int argc, char *argv[]) {
 			strcpy(history, buffer);
 			
 		}
+		
 		
 		rec = splitToken(buffer);
 
@@ -78,13 +82,13 @@ int main(int argc, char *argv[]) {
 		else if((strcmp(rec[0], "!!\n") == 0 && strcmp(history, "!!\n") != 0)|| strcmp(rec[0], "!!") == 0){
 
 			char ** prevCommand = splitToken(history);
-			active = command(prevCommand);
+			active = command(prevCommand, history);
 		}
 
 
 		else{
 			
-			active = command(rec);
+			active = command(rec, history);
 		}		
 	}
 	return 0;
@@ -94,30 +98,36 @@ int main(int argc, char *argv[]) {
 char ** splitToken(char * args){
 	
 	int index = 0;
-	char ** tokens = malloc(MAX_TOKEN+1 * sizeof(char *));
+	char ** tokens = malloc(MAX_TOKEN * sizeof(char *));
 	char * token;
 
 	token = strtok(args, " ");
-	while(token != NULL){
-		tokens[index] = token;
+	while(index < MAX_TOKEN){
+		if(token != NULL){
+			tokens[index] = token;
+		} else{
+			tokens[index] = NULL;
+		}
 		index ++;
 
 		if(index >= (MAX_TOKEN - 1)){
 			break;
 		}
 		token = strtok(NULL, " ");
+	
 	}
+	
 	
 	return tokens;
 }
 
 
-int command(char ** args){
-
-
+int command(char ** args, char * buffer){
+	
 	if (args == NULL){
 		return 1;
 	}
+
 	else if ( strcmp(args[0], "echo") == 0){
 		printf("%s", args[1]);
 		for(int i = 2; args[i] != NULL; i++){
@@ -127,8 +137,46 @@ int command(char ** args){
 		return 1;
 	}
 
+
+
 	else {
-		printf("Bad command\n");
+		exe(buffer);
+		
+			
+			
+			
+	}
+	return 1;
+
+}
+
+
+int exe(char * command){
+	
+	int pid;
+	char ** result;
+	int status;
+	
+	command[strcspn(command, "\n")] = 0;
+
+	result = splitToken(command);
+	
+	if ((pid = fork())< 0){
+	
+		perror("Fork failed");
+		exit(1);
+		
+	}
+	if(!pid){
+		status = execvp(result[0], result);
+		if (status == -1){
+			printf("Bad command \n");
+		}
+		exit(1);
+	}
+	if(pid){
+		waitpid(pid, NULL, 0);
+		
 	}
 	return 1;
 
