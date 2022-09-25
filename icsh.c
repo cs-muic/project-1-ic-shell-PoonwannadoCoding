@@ -4,31 +4,60 @@
  */
 
 #include "stdio.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 int command(char **);
 char ** splitToken(char *);
+char ** readFile(char *);
 
-
+#define MAX_LINE_LENGTEH 100
 #define MAX_CMD_BUFFER 255
 #define MAX_STRING 255
 #define MAX_TOKEN 100
 
-int main() {
+int main(int argc, char *argv[]) {
     char buffer[MAX_CMD_BUFFER];
 	char** rec;
 	char history[MAX_CMD_BUFFER];
 	int active = 1;
+	int i = 0;
+	
+	
 
 	printf("Starting IC shell\n");
     while (active) {
+		
 
         printf("icsh $ ");
-        fgets(buffer, 255, stdin);
 
+		if (argc > 1){
+			
+			char total[MAX_CMD_BUFFER][MAX_LINE_LENGTEH];
+			FILE * textFile;
+			int index = 0;
+			textFile = fopen(argv[1], "r");
+			if (textFile == NULL){
+				return 1;
+			}
+			while (!feof(textFile) && !ferror(textFile)) {
+				if(fgets(total[index], MAX_LINE_LENGTEH, textFile) != NULL){
+					index++;
+		
+				}
+			}
+			fclose(textFile);
+			strcpy(buffer, total[i]);
+			i++;
 
+		}
+
+		else {
+			fgets(buffer, 255, stdin);
+		}
+		printf("buffer => %s", buffer);
 
 		if (strcmp(buffer, "!!\n") != 0){
 			strcpy(history, buffer);
@@ -63,7 +92,26 @@ int main() {
 	return 0;
 }
 
-
+char ** readFile(char * filename){
+	char ** total[MAX_CMD_BUFFER][MAX_LINE_LENGTEH];
+	FILE * textFile;
+	int index = 0;
+	textFile = fopen(filename, "r");
+	if (textFile == NULL){
+		return NULL;
+	}
+	while (!feof(textFile) && !ferror(textFile)) {
+		if(fgets(total[index], MAX_LINE_LENGTEH, textFile) != NULL){
+			index++;
+		
+		}
+	}
+	fclose(textFile);
+	
+	printf("read this shit => %s \n", total[0]);
+	
+	return total;
+}
 
 char ** splitToken(char * args){
 	
