@@ -80,9 +80,15 @@ int main(int argc, char *argv[]) {
 		}
 
 		else if((strcmp(rec[0], "!!\n") == 0 && strcmp(history, "!!\n") != 0)|| strcmp(rec[0], "!!") == 0){
+			if (strcmp(history, "") == 0){
 
-			char ** prevCommand = splitToken(history);
-			active = command(prevCommand, history);
+				printf("Bad command \n");
+			} else {
+				char * preC= strdup(history);
+				char ** prevCommand = splitToken(preC);
+				active = command(prevCommand, history);
+				free(preC);
+			}
 		}
 
 
