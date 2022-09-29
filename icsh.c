@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
 		}
 	
 
-		if (strcmp(buffer, "!!\n") != 0){
+		if (strcmp(buffer, "!!\n") != 0 && strcmp(buffer, "\n") != 0){
 			strcpy(history, buffer);
 			
 		}
@@ -91,11 +91,10 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-
-		else{
-			
+		else if(strcmp(buffer, "\n") != 0){
 			active = command(rec, history);
-		}		
+
+		}
 	}
 	return 0;
 }
