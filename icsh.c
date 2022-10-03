@@ -4,17 +4,21 @@
  */
 
 #include "stdio.h"
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include<sys/wait.h>
 
 int command(char **, char *);
 char ** splitToken(char *);
 int exe(char *);
-
+int readLines(char *, char **);
+void handle_sigint(int);
+pid_t pid;
 #define MAX_LINE_LENGTEH 100
 #define MAX_CMD_BUFFER 255
 #define MAX_STRING 255
@@ -23,20 +27,37 @@ int exe(char *);
 int main(int argc, char *argv[]) {
     char buffer[MAX_CMD_BUFFER];
 	char** rec;
-
 	char history[MAX_CMD_BUFFER];
 	int active = 1;
 	int i = 0;
 
+	struct sigaction new_action, old_action;
+
+
 	
 	printf("Starting IC shell\n");
     while (active) {
+
+
+		new_action.sa_handler = handle_sigint;
+		sigemptyset(&new_action.sa_mask);
+		new_action.sa_flags = 0;
+
+		sigaction(SIGINT, NULL , &old_action);
+		if (old_action.sa_handler != SIG_IGN){
+			sigaction(SIGINT, &new_action, NULL);
+		}
+
+		sigaction(SIGTSTP, NULL, &old_action);
+		if (old_action.sa_handler != SIG_IGN){
+			sigaction(SIGTSTP, &new_action, NULL);
+		}
 		
 
         printf("icsh $ ");
 
 		if (argc > 1){
-			
+		
 			char total[MAX_CMD_BUFFER][MAX_LINE_LENGTEH];
 			FILE * textFile;
 			int index = 0;
@@ -50,12 +71,13 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			fclose(textFile);
+		
 			strcpy(buffer, total[i]);
 			i++;
 			
 		}
 
-		else {
+		else{
 			fgets(buffer, 255, stdin);
 			
 		}
@@ -93,11 +115,13 @@ int main(int argc, char *argv[]) {
 
 		else if(strcmp(buffer, "\n") != 0){
 			active = command(rec, history);
-
+		
 		}
+		pid = 0;
 	}
 	return 0;
 }
+
 
 
 char ** splitToken(char * args){
@@ -126,6 +150,24 @@ char ** splitToken(char * args){
 	return tokens;
 }
 
+void handle_sigint(int sig){
+	
+	if (sig == SIGTSTP && pid){
+		kill(pid, SIGTSTP);
+		printf("\n");
+		return; 
+		
+	}
+	
+	else if (sig == SIGINT && pid){
+		kill(pid, SIGINT);
+		printf("\n");
+	}
+
+	
+	
+}
+
 
 int command(char ** args, char * buffer){
 	
@@ -146,9 +188,6 @@ int command(char ** args, char * buffer){
 
 	else {
 		exe(buffer);
-		
-			
-			
 			
 	}
 	return 1;
@@ -158,13 +197,14 @@ int command(char ** args, char * buffer){
 
 int exe(char * command){
 	
-	int pid;
+	
 	char ** result;
 	int status;
 	
 	command[strcspn(command, "\n")] = 0;
 
 	result = splitToken(command);
+
 	
 	if ((pid = fork())< 0){
 	
@@ -180,7 +220,7 @@ int exe(char * command){
 		exit(1);
 	}
 	if(pid){
-		waitpid(pid, NULL, 0);
+		waitpid(pid, &status, 0);
 		
 	}
 	return 1;
