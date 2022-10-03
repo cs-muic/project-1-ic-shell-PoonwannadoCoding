@@ -19,6 +19,9 @@ int exe(char *);
 int readLines(char *, char **);
 void handle_sigint(int);
 pid_t pid;
+int status;
+int sigs;
+
 #define MAX_LINE_LENGTEH 100
 #define MAX_CMD_BUFFER 255
 #define MAX_STRING 255
@@ -53,8 +56,8 @@ int main(int argc, char *argv[]) {
 			sigaction(SIGTSTP, &new_action, NULL);
 		}
 		
-
-        printf("icsh $ ");
+		
+        printf("\nicsh $ ");
 
 		if (argc > 1){
 		
@@ -151,7 +154,7 @@ char ** splitToken(char * args){
 }
 
 void handle_sigint(int sig){
-	
+	sigs = sig;
 	if (sig == SIGTSTP && pid){
 		kill(pid, SIGTSTP);
 		printf("\n");
@@ -199,7 +202,7 @@ int exe(char * command){
 	
 	
 	char ** result;
-	int status;
+
 	
 	command[strcspn(command, "\n")] = 0;
 
@@ -209,13 +212,15 @@ int exe(char * command){
 	if ((pid = fork())< 0){
 	
 		perror("Fork failed");
+		
 		exit(1);
 		
 	}
 	if(!pid){
 		status = execvp(result[0], result);
-		if (status == -1){
-			printf("Bad command \n");
+		if (status < 0 && sigs == 0){
+			
+			printf("\nBad command \n");
 		}
 		exit(1);
 	}
