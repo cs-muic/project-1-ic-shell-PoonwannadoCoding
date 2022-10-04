@@ -55,6 +55,8 @@ int main(int argc, char *argv[]) {
 		if (old_action.sa_handler != SIG_IGN){
 			sigaction(SIGTSTP, &new_action, NULL);
 		}
+
+		while(waitpid(pid, &sigs, WNOHANG) > 0);
 		
 		
         printf("\nicsh $ ");
@@ -164,6 +166,7 @@ void handle_sigint(int sig){
 	
 	else if (sig == SIGINT && pid){
 		kill(pid, SIGINT);
+		waitpid(pid, &sigs, 0);
 		printf("\n");
 	}
 
