@@ -16,12 +16,12 @@
 
 
 // FUNCTION
-int command(char **, char *, int);
-char ** splitToken(char *);
-int exe(char *, int);
+int command(char **, char *);
+char ** splitToken(char *, int);
+int exe(char *);
 int readLines(char *, char **);
 void handle_sigint(int);
-
+int reDir(char *);
 
 // VARIABLE
 pid_t pid;
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 		
-		rec = splitToken(buffer);
+		rec = splitToken(buffer, MAX_TOKEN);
 
 		if(strcmp(rec[0], "exit") == 0){
 			printf("Bye \n");
@@ -119,14 +119,17 @@ int main(int argc, char *argv[]) {
 				printf("Bad command \n");
 			} else {
 				char * preC= strdup(history);
-				char ** prevCommand = splitToken(preC);
-				active = command(prevCommand, history, argc);
+				char ** prevCommand = splitToken(preC, MAX_TOKEN);
+				active = command(prevCommand, history);
 				free(preC);
 			}
 		}
 
 		else if(strcmp(buffer, "\n") != 0){
-			active = command(rec, history, argc);
+			char * meep = strdup(history);
+			active = command(rec, history);
+			active = reDir(meep);
+			free(meep);
 		
 		}
 		pid = 0;
@@ -137,14 +140,15 @@ int main(int argc, char *argv[]) {
 
 
 
-char ** splitToken(char * args){
+char ** splitToken(char * args, int limit){
 	
 	int index = 0;
 	char ** tokens = malloc(MAX_TOKEN * sizeof(char *));
 	char * token;
 	//printf("%s \n", args);
+	args[strcspn(args, "\n")] = 0;
 	token = strtok(args, " ");
-	while(index < MAX_TOKEN){
+	while(index < MAX_TOKEN && index < limit){
 		if(token != NULL){
 
 			tokens[index] = token;
@@ -199,7 +203,10 @@ void handle_sigint(int sig){
 }
 
 
-int command(char ** args, char * buffer, int argc){
+int command(char ** args, char * buffer){
+	
+		
+	buffer[strcspn(buffer, "\n")] = 0;
 	
 	if (args == NULL){
 		return 1;
@@ -210,45 +217,58 @@ int command(char ** args, char * buffer, int argc){
 		for(int i = 2; args[i] != NULL; i++){
 			printf(" %s", args[i]);
 		}
+		printf("\n");
 		
 		return 1;
 	}
 
 	else {
-		exe(buffer, argc);
+		exe(buffer);
 			
 	}
 	return 1;
 
 }
 
+int reDir(char * arg){
 
-int exe(char * command, int argc){
+	char ** split;
+	split = splitToken(arg, MAX_TOKEN);
+	if (isRedirect == 1){
+		int pfd = open(split[posFIle], O_WRONLY | O_CREAT, 0777);
+		int save = dup(1);
+
+		dup2(pfd,1);
+		close(pfd);
+		command(split, arg);	
+		dup2(save, 1);
+		close(save);
+		return 1;
+
+	}
+	if (isRedirect == 2){
+	
+		FILE * fp;
+		fp = fopen(split[posFIle], "w");
+		fprintf(fp, "%s\n" , arg);
+		fclose(fp);
+		isRedirect = 0;
+		return 1;
+	}
+
+
+	
+	return 1;
+}
+
+int exe(char * command){
 	
 	
 	char ** result;
 	
-	
-	
-	command[strcspn(command, "\n")] = 0;
 
-	result = splitToken(command);
+	result = splitToken(command, posFIle-1);
 	
-	
-	//printf("is Redirect = %d \n", isRedirect);
-	if (isRedirect > 0){
-		if (isRedirect == 2){
-			//printf("WW %s \n", result[posFIle]);
-			FILE * fp;
-			fp = fopen(result[posFIle], "w");
-			fprintf(fp, "%s\n", command);
-			fclose(fp);
-			
-			isRedirect = 0;
-			return 1;
-		}
-		
-	}
 
 	
 	if ((pid = fork())< 0){
