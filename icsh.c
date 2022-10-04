@@ -12,15 +12,23 @@
 #include <unistd.h>
 #include <signal.h>
 #include<sys/wait.h>
+#include<fcntl.h>
 
-int command(char **, char *);
+
+// FUNCTION
+int command(char **, char *, int);
 char ** splitToken(char *);
-int exe(char *);
+int exe(char *, int);
 int readLines(char *, char **);
 void handle_sigint(int);
+
+
+// VARIABLE
 pid_t pid;
 int status;
 int sigs;
+int isRedirect;
+int posFIle;
 
 #define MAX_LINE_LENGTEH 100
 #define MAX_CMD_BUFFER 255
@@ -59,10 +67,9 @@ int main(int argc, char *argv[]) {
 		while(waitpid(pid, &sigs, WNOHANG) > 0);
 		
 		
-        printf("\nicsh $ ");
+        printf("icsh $ ");
 
 		if (argc > 1){
-		
 			char total[MAX_CMD_BUFFER][MAX_LINE_LENGTEH];
 			FILE * textFile;
 			int index = 0;
@@ -113,16 +120,17 @@ int main(int argc, char *argv[]) {
 			} else {
 				char * preC= strdup(history);
 				char ** prevCommand = splitToken(preC);
-				active = command(prevCommand, history);
+				active = command(prevCommand, history, argc);
 				free(preC);
 			}
 		}
 
 		else if(strcmp(buffer, "\n") != 0){
-			active = command(rec, history);
+			active = command(rec, history, argc);
 		
 		}
 		pid = 0;
+		
 	}
 	return 0;
 }
@@ -134,11 +142,27 @@ char ** splitToken(char * args){
 	int index = 0;
 	char ** tokens = malloc(MAX_TOKEN * sizeof(char *));
 	char * token;
-
+	//printf("%s \n", args);
 	token = strtok(args, " ");
 	while(index < MAX_TOKEN){
 		if(token != NULL){
+
 			tokens[index] = token;
+
+			if (tokens[index] != NULL){
+				
+				if(strcmp(tokens[index], ">") == 0){
+					isRedirect = 1;
+					posFIle = index + 1;
+				}
+
+				if (strcmp(tokens[index], "<") == 0){
+					isRedirect = 2;
+					posFIle = index + 1;
+				}
+			}
+			
+		
 		} else{
 			tokens[index] = NULL;
 		}
@@ -175,7 +199,7 @@ void handle_sigint(int sig){
 }
 
 
-int command(char ** args, char * buffer){
+int command(char ** args, char * buffer, int argc){
 	
 	if (args == NULL){
 		return 1;
@@ -190,10 +214,8 @@ int command(char ** args, char * buffer){
 		return 1;
 	}
 
-
-
 	else {
-		exe(buffer);
+		exe(buffer, argc);
 			
 	}
 	return 1;
@@ -201,15 +223,32 @@ int command(char ** args, char * buffer){
 }
 
 
-int exe(char * command){
+int exe(char * command, int argc){
 	
 	
 	char ** result;
-
+	
+	
 	
 	command[strcspn(command, "\n")] = 0;
 
 	result = splitToken(command);
+	
+	
+	//printf("is Redirect = %d \n", isRedirect);
+	if (isRedirect > 0){
+		if (isRedirect == 2){
+			//printf("WW %s \n", result[posFIle]);
+			FILE * fp;
+			fp = fopen(result[posFIle], "w");
+			fprintf(fp, "%s\n", command);
+			fclose(fp);
+			
+			isRedirect = 0;
+			return 1;
+		}
+		
+	}
 
 	
 	if ((pid = fork())< 0){
@@ -234,6 +273,8 @@ int exe(char * command){
 	return 1;
 
 }
+
+
 
 
 
