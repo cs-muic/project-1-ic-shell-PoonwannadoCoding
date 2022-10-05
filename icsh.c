@@ -5,6 +5,7 @@
 
 #include "stdio.h"
 #include <signal.h>
+#include <bits/pthreadtypes.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,10 +127,8 @@ int main(int argc, char *argv[]) {
 		}
 
 		else if(strcmp(buffer, "\n") != 0){
-			char * meep = strdup(history);
 			active = command(rec, history);
-			active = reDir(meep);
-			free(meep);
+		
 		
 		}
 		pid = 0;
@@ -157,6 +156,7 @@ char ** splitToken(char * args, int limit){
 				
 				if(strcmp(tokens[index], ">") == 0){
 					isRedirect = 1;
+				//	printf("F\n");
 					posFIle = index + 1;
 				}
 
@@ -205,10 +205,18 @@ void handle_sigint(int sig){
 
 int command(char ** args, char * buffer){
 	
-		
+
 	buffer[strcspn(buffer, "\n")] = 0;
 	
 	if (args == NULL){
+		return 1;
+	}
+
+	if (isRedirect > 0){
+		char * useForSave;
+		useForSave = strdup(buffer);
+		reDir(useForSave);
+		free(useForSave);
 		return 1;
 	}
 
@@ -223,6 +231,7 @@ int command(char ** args, char * buffer){
 	}
 
 	else {
+		//printf("%s \n", buffer);
 		exe(buffer);
 			
 	}
@@ -231,33 +240,46 @@ int command(char ** args, char * buffer){
 }
 
 int reDir(char * arg){
-
+	//printf("%s \n", arg);
+	char * used;
+	used = strdup(arg);
 	char ** split;
 	split = splitToken(arg, MAX_TOKEN);
 	if (isRedirect == 1){
+		
 		int pfd = open(split[posFIle], O_WRONLY | O_CREAT, 0777);
 		int save = dup(1);
 
 		dup2(pfd,1);
 		close(pfd);
-		command(split, arg);	
+		exe(used);	
 		dup2(save, 1);
 		close(save);
-		return 1;
+		isRedirect = 0;
+		
 
 	}
 	if (isRedirect == 2){
 	
 		FILE * fp;
-		fp = fopen(split[posFIle], "w");
-		fprintf(fp, "%s\n" , arg);
-		fclose(fp);
-		isRedirect = 0;
-		return 1;
+		
+		if (fp = fopen(split[posFIle], "r")){
+			fclose(fp);
+			fp = fopen(split[posFIle], "w");
+			fprintf(fp, "%s\n" , used);
+			fclose(fp);
+			isRedirect = 0;
+		} else {
+			printf("File not exist \n");
+			isRedirect = 0;
+			return 1;
+		}
+		
+		
 	}
 
 
-	
+	free(used);	
 	return 1;
 }
 
@@ -266,10 +288,14 @@ int exe(char * command){
 	
 	char ** result;
 	
-
-	result = splitToken(command, posFIle-1);
-	
-
+	if (posFIle > 0){
+		result = splitToken(command, posFIle-1);
+		
+	}
+	else {
+		result = splitToken(command, MAX_TOKEN);
+		
+	}
 	
 	if ((pid = fork())< 0){
 	

@@ -1,0 +1,8 @@
+total 56
+-rwxrwxr-x 1 worawit worawit 24760 ต.ค.   5 20:12 icsh
+-rw-rw-r-- 1 worawit worawit  4985 ต.ค.   5 20:12 icsh.c
+-rw-rw-r-- 1 worawit worawit   134 ก.ย.  23 20:42 Makefile
+-rw-rw-r-- 1 worawit worawit    17 ต.ค.   5 20:12 meep.txt
+-rw-rw-r-- 1 worawit worawit   326 ก.ย.  23 20:42 README.md
+-rw-rw-r-- 1 worawit worawit   681 ต.ค.   5 19:49 save.txt
+-rw-rw-r-- 1 worawit worawit    27 ก.ย.  25 16:00 test.txt
