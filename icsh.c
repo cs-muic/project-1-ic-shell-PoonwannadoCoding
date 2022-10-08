@@ -26,7 +26,7 @@ int reDir(char *);
 
 // VARIABLE
 pid_t pid;
-
+pid_t cpid;
 int status;
 int sigs;
 int isRedirect;
@@ -323,17 +323,17 @@ int exe(char * command){
 	}
 	if(pid && isBg == 1){
 
-		//struct sigaction new_action;
 
-		//setpgid(0, 0);//set group id to foreground
-		//tcsetpgrp(0, pid);
+		new_action.sa_handler = SIG_IGN;
+		sigaction(SIGTTIN, &new_action, NULL);
+
+		sigaction(SIGTTOU, &new_action, NULL);
+		printf("%d \n", pid);
+		setpgid(0, 0);//set group id to foreground
+		tcsetpgrp(0, cpid);
 		//waitpid(pid, NULL, 0);
 		
-		//new_action.sa_handler = SIG_IGN;
-		//sigaction(SIGTTIN, &new_action, NULL);
-		//sigaction(SIGTTOU, &new_action, NULL);
-
-		//tcsetpgrp(0, pid);
+		tcsetpgrp(0, cpid);
 		isBg = 0;
 	}
 
