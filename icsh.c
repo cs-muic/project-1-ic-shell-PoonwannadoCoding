@@ -15,7 +15,6 @@
 #include<sys/wait.h>
 #include<fcntl.h>
 
-
 // FUNCTION
 int command(char **, char *);
 char ** splitToken(char *, int);
@@ -23,6 +22,7 @@ int exe(char *);
 int readLines(char *, char **);
 void handle_sigint(int);
 int reDir(char *);
+void addJobs(pid_t , char*);
 
 // VARIABLE
 pid_t pid;
@@ -33,12 +33,25 @@ int isRedirect;
 int posFIle;
 int isBg;
 int bgIndex;
+int items;
+int id = 1;
 struct sigaction new_action, old_action;
 
-#define MAX_LINE_LENGTEH 100
+
 #define MAX_CMD_BUFFER 255
+#define MAX_LINE_LENGTEH 100
 #define MAX_STRING 255
 #define MAX_TOKEN 100
+
+typedef struct bg{
+	int id;
+	char name[MAX_CMD_BUFFER];
+	//int status;
+	pid_t jobPid;
+} job_list;
+
+job_list jobs[100];
+
 
 int main(int argc, char *argv[]) {
     char buffer[MAX_CMD_BUFFER];
@@ -64,6 +77,7 @@ int main(int argc, char *argv[]) {
 		if (old_action.sa_handler != SIG_IGN){
 			sigaction(SIGTSTP, &new_action, NULL);
 		}
+		
 
 		while(waitpid(-1, &sigs, WNOHANG) > 0){}
 		
@@ -202,6 +216,12 @@ void handle_sigint(int sig){
 		waitpid(pid, &sigs, 0);
 		printf("\n");
 	}
+	else if(sig == SIGCHLD && pid){
+		//printf("hmm => %s \n", jobs[items].name);
+		printf("[%d]+ Done %s \n", jobs[items-1].id, jobs[items-1].name);
+		isBg = 0;
+		pid = 0;
+	}
 
 	
 	
@@ -288,7 +308,8 @@ int reDir(char * arg){
 }
 
 int exe(char * command){
-	
+	char * cpCommand;
+	cpCommand = strdup(command);
 	
 	char ** result;
 	
@@ -323,22 +344,38 @@ int exe(char * command){
 	}
 	if(pid && isBg == 1){
 
-
 		new_action.sa_handler = SIG_IGN;
+		old_action.sa_handler = handle_sigint; 
 		sigaction(SIGTTIN, &new_action, NULL);
-
 		sigaction(SIGTTOU, &new_action, NULL);
-		printf("%d \n", pid);
+		sigaction(SIGCHLD, &old_action, NULL);
+		
 		setpgid(0, 0);//set group id to foreground
+		//printf("%d \n", pid);
+		//printf("%s \n", cpCommand);
+		addJobs(pid, cpCommand);
+			
 		tcsetpgrp(0, cpid);
 		//waitpid(pid, NULL, 0);
 		
 		tcsetpgrp(0, cpid);
 		isBg = 0;
 	}
-
-
+	free(cpCommand);
 	return 1;
+
+}
+
+void addJobs(pid_t ppid, char * command){
+
+	jobs[items].id = id;
+	strcpy(jobs[items].name, command);
+	//jobs[items].name = command;
+	//printf("added => %s\n", jobs[items].name);
+	jobs[items].jobPid = ppid;
+	items++;
+	id++;	
+	printf("[%d] %d \n", jobs[items-1].id, jobs[items-1].jobPid);
 
 }
 
