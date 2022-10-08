@@ -26,10 +26,14 @@ int reDir(char *);
 
 // VARIABLE
 pid_t pid;
+
 int status;
 int sigs;
 int isRedirect;
 int posFIle;
+int isBg;
+int bgIndex;
+struct sigaction new_action, old_action;
 
 #define MAX_LINE_LENGTEH 100
 #define MAX_CMD_BUFFER 255
@@ -42,10 +46,6 @@ int main(int argc, char *argv[]) {
 	char history[MAX_CMD_BUFFER];
 	int active = 1;
 	int i = 0;
-
-	struct sigaction new_action, old_action;
-
-
 	
 	printf("Starting IC shell\n");
     while (active) {
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
 			sigaction(SIGTSTP, &new_action, NULL);
 		}
 
-		while(waitpid(pid, &sigs, WNOHANG) > 0);
+		while(waitpid(-1, &sigs, WNOHANG) > 0){}
 		
 		
         printf("icsh $ ");
@@ -91,8 +91,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		else{
-			fgets(buffer, 255, stdin);
-			
+			fgets(buffer, 255, stdin);	
 		}
 	
 
@@ -156,12 +155,17 @@ char ** splitToken(char * args, int limit){
 				
 				if(strcmp(tokens[index], ">") == 0){
 					isRedirect = 1;
-				//	printf("F\n");
 					posFIle = index + 1;
 				}
 
 				if (strcmp(tokens[index], "<") == 0){
 					isRedirect = 2;
+					posFIle = index + 1;
+				}
+
+				if (strcmp(tokens[index], "&") == 0){
+					isBg = 1;
+					//printf("OH NOES\n ");
 					posFIle = index + 1;
 				}
 			}
@@ -185,6 +189,7 @@ char ** splitToken(char * args, int limit){
 
 void handle_sigint(int sig){
 	sigs = sig;
+	//printf("sig => %d \n", sig);
 	if (sig == SIGTSTP && pid){
 		kill(pid, SIGTSTP);
 		printf("\n");
@@ -274,8 +279,7 @@ int reDir(char * arg){
 			isRedirect = 0;
 			return 1;
 		}
-		
-		
+			
 	}
 
 
@@ -288,7 +292,7 @@ int exe(char * command){
 	
 	char ** result;
 	
-	if (posFIle > 0){
+	if (posFIle > 0 || isBg > 0){
 		result = splitToken(command, posFIle-1);
 		
 	}
@@ -305,17 +309,35 @@ int exe(char * command){
 		
 	}
 	if(!pid){
+		setpgid(0, 0);
 		status = execvp(result[0], result);
+
 		if (status < 0 && sigs == 0){
 			
 			printf("\nBad command \n");
 		}
 		exit(1);
 	}
-	if(pid){
+	if(pid && isBg == 0){
 		waitpid(pid, &status, 0);
-		
 	}
+	if(pid && isBg == 1){
+
+		//struct sigaction new_action;
+
+		//setpgid(0, 0);//set group id to foreground
+		//tcsetpgrp(0, pid);
+		//waitpid(pid, NULL, 0);
+		
+		//new_action.sa_handler = SIG_IGN;
+		//sigaction(SIGTTIN, &new_action, NULL);
+		//sigaction(SIGTTOU, &new_action, NULL);
+
+		//tcsetpgrp(0, pid);
+		isBg = 0;
+	}
+
+
 	return 1;
 
 }
