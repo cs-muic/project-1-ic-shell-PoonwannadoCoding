@@ -6,6 +6,7 @@
 #include "stdio.h"
 #include <signal.h>
 #include <bits/pthreadtypes.h>
+#include <bits/types/sigset_t.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +36,7 @@ int isBg;
 int bgIndex;
 int items;
 int id = 1;
-struct sigaction new_action, old_action;
+struct sigaction new_action, old_action, fg_action, bg_action;
 
 
 #define MAX_CMD_BUFFER 255
@@ -63,7 +64,6 @@ int main(int argc, char *argv[]) {
 	printf("Starting IC shell\n");
     while (active) {
 
-
 		new_action.sa_handler = handle_sigint;
 		sigemptyset(&new_action.sa_mask);
 		new_action.sa_flags = 0;
@@ -77,7 +77,6 @@ int main(int argc, char *argv[]) {
 		if (old_action.sa_handler != SIG_IGN){
 			sigaction(SIGTSTP, &new_action, NULL);
 		}
-		
 
 		while(waitpid(-1, &sigs, WNOHANG) > 0){}
 		
@@ -113,6 +112,10 @@ int main(int argc, char *argv[]) {
 			strcpy(history, buffer);
 			
 		}
+
+		if (strcmp(jobs[0].name, "") != 0){
+			memset(history, 0, 255);
+		}
 		
 		
 		rec = splitToken(buffer, MAX_TOKEN);
@@ -123,7 +126,7 @@ int main(int argc, char *argv[]) {
 			if (arg1 > 255){
 				return arg1 >> 8;
 			} else{
-			return arg1;
+				return arg1;
 			}
 		}
 
@@ -140,13 +143,16 @@ int main(int argc, char *argv[]) {
 		}
 
 		else if(strcmp(buffer, "\n") != 0){
+			//printf("SUS 0 \n");
 			active = command(rec, history);
-		
-		
+			
 		}
 		pid = 0;
 		
+		
+		
 	}
+	fflush(stdin);
 	return 0;
 }
 
@@ -203,6 +209,7 @@ char ** splitToken(char * args, int limit){
 
 void handle_sigint(int sig){
 	sigs = sig;
+
 	//printf("sig => %d \n", sig);
 	if (sig == SIGTSTP && pid){
 		kill(pid, SIGTSTP);
@@ -218,9 +225,12 @@ void handle_sigint(int sig){
 	}
 	else if(sig == SIGCHLD && pid){
 		//printf("hmm => %s \n", jobs[items].name);
-		printf("[%d]+ Done %s \n", jobs[items-1].id, jobs[items-1].name);
+		char * jobName = jobs[items-1].name;
+		jobName[strcspn(jobName, "&")] = 0;
+		printf("[%d]+  Done \t \t \t  %s \n", jobs[items-1].id, jobName);
 		isBg = 0;
 		pid = 0;
+		
 	}
 
 	
@@ -230,7 +240,7 @@ void handle_sigint(int sig){
 
 int command(char ** args, char * buffer){
 	
-
+	//printf("buffer => %s\n", buffer);	
 	buffer[strcspn(buffer, "\n")] = 0;
 	
 	if (args == NULL){
@@ -288,8 +298,7 @@ int reDir(char * arg){
 	
 		FILE * fp;
 		
-		if (fp = fopen(split[posFIle], "r")){
-			fclose(fp);
+		if (fopen(split[posFIle], "r")){
 			fp = fopen(split[posFIle], "w");
 			fprintf(fp, "%s\n" , used);
 			fclose(fp);
@@ -310,11 +319,13 @@ int reDir(char * arg){
 int exe(char * command){
 	char * cpCommand;
 	cpCommand = strdup(command);
+//	sigset_t new_set, old_set;
 	
 	char ** result;
 	
 	if (posFIle > 0 || isBg > 0){
 		result = splitToken(command, posFIle-1);
+	
 		
 	}
 	else {
@@ -344,11 +355,11 @@ int exe(char * command){
 	}
 	if(pid && isBg == 1){
 
-		new_action.sa_handler = SIG_IGN;
-		old_action.sa_handler = handle_sigint; 
-		sigaction(SIGTTIN, &new_action, NULL);
-		sigaction(SIGTTOU, &new_action, NULL);
-		sigaction(SIGCHLD, &old_action, NULL);
+		fg_action.sa_handler = SIG_IGN;
+		bg_action.sa_handler = handle_sigint; 
+		sigaction(SIGTTIN, &fg_action, NULL);
+		sigaction(SIGTTOU, &fg_action, NULL);
+		sigaction(SIGCHLD, &bg_action, NULL);
 		
 		setpgid(0, 0);//set group id to foreground
 		//printf("%d \n", pid);
@@ -358,18 +369,19 @@ int exe(char * command){
 		tcsetpgrp(0, cpid);
 		//waitpid(pid, NULL, 0);
 		
-		tcsetpgrp(0, cpid);
+		//tcsetpgrp(0, cpid);
 		isBg = 0;
+		
 	}
 	free(cpCommand);
 	return 1;
 
 }
 
-void addJobs(pid_t ppid, char * command){
+void addJobs(pid_t ppid, char * cmp){
 
 	jobs[items].id = id;
-	strcpy(jobs[items].name, command);
+	strcpy(jobs[items].name, cmp);
 	//jobs[items].name = command;
 	//printf("added => %s\n", jobs[items].name);
 	jobs[items].jobPid = ppid;
