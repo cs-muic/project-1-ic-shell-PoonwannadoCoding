@@ -29,6 +29,7 @@ void handle_child(int);
 void jobDone(pid_t, int);
 void clearJob(void);
 void printJob(void);
+void fg(int);
 
 // VARIABLE
 pid_t pid;
@@ -293,7 +294,7 @@ int command(char ** args, char * buffer){
 	
 	//printf("buffer => %s\n", buffer);	
 	buffer[strcspn(buffer, "\n")] = 0;
-	
+	buffer[strcspn(buffer, "%")] = 0;
 	if (args == NULL){
 		return 1;
 	}
@@ -318,7 +319,17 @@ int command(char ** args, char * buffer){
 	else if (strcmp(args[0], "jobs") == 0){
 		printJob();
 		return 1;
+	
 	}
+
+	else if (strcmp(args[0], "fg") == 0){
+		
+		fg(atoi(args[1]));
+		
+		return 1;
+	}
+
+
 
 	else {
 		//printf("%s \n", buffer);
@@ -468,6 +479,7 @@ void jobDone(pid_t ppid, int status){
 void deleteJobs(int id){
 	
 	for (int i = id-1; i < 100; i++) {
+		items --;
 		jobs[i].id = jobs[i+1].id-1;
 		strcpy(jobs[i].name, jobs[i+1].name);
 		jobs[i].jobPid = jobs[i+1].jobPid;
@@ -504,7 +516,23 @@ void clearJob(){
 		}
 		
 	}
+}
+
+void fg(int id){
+	int status = 0;
+	for(int i = 0; i < 100; i++){
+		if (jobs[i].id == id){
+			kill(SIGCONT, jobs[i].jobPid);
+			tcsetpgrp(0, jobs[i].jobPid);
+			waitpid(-1, &status, 0);
+			tcsetpgrp(0, cpid);
+			break;
+		}
+
+	}
 
 
 }
+
+
 
