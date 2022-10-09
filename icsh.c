@@ -30,6 +30,7 @@ void jobDone(pid_t, int);
 void clearJob(void);
 void printJob(void);
 void fg(int);
+void bg(int);
 
 // VARIABLE
 pid_t pid;
@@ -44,12 +45,14 @@ int items;
 int id = 1;
 int recieve;
 struct sigaction new_action, old_action, fg_action, bg_action;
+int fromFg;
 
 
 #define MAX_CMD_BUFFER 255
 #define MAX_LINE_LENGTEH 100
 #define MAX_STRING 255
 #define MAX_TOKEN 100
+
 
 typedef struct bg{
 	int id;
@@ -231,6 +234,7 @@ char ** splitToken(char * args, int limit){
 }
 
 void printJob(){
+	//printf("WORK? \n");
 	for(int i = 0; i < items; i++){
 		if (items - i == 2){
 			if (jobs[i].status == 1){
@@ -260,8 +264,6 @@ void printJob(){
 			}
 		}
 	}
-
-
 }
 
 void handle_sigint(int sig){
@@ -328,6 +330,14 @@ int command(char ** args, char * buffer){
 		
 		return 1;
 	}
+	
+	else if (strcmp(args[0], "bg") == 0){
+
+		bg(atoi(args[1]));
+		return 1;
+
+	}
+	
 
 
 
@@ -439,8 +449,10 @@ int exe(char * command){
 			}
 
 			if (WIFSTOPPED(status)){
-
-				printf("MEEP \n");
+				fromFg = 1;
+				printf("\n");
+				addJobs(pid, cpCommand);
+				//printf("[%d]+ Stopped \t \t \t \t %s \n",jobs[items].id, jobs[items].name);
 			}
 		}
 		tcsetpgrp(0, cpid);
@@ -458,10 +470,24 @@ void addJobs(pid_t ppid, char * cmp){
 	//jobs[items].name = command;
 	//printf("added => %s\n", jobs[items].name);
 	jobs[items].jobPid = ppid;
-	jobs[items].status = 1;
-	items++;
-	id++;	
-	printf("[%d] %d \n", jobs[items-1].id, jobs[items-1].jobPid);
+
+	if (fromFg == 0){
+		jobs[items].status = 1;
+		printf("[%d] %d \n", jobs[items].id, jobs[items].jobPid);
+		id++;
+		items++;
+		return;
+	}
+
+	else{
+
+		jobs[items].status = 0;
+		fromFg = 0;
+		printf("[%d]+ Stopped \t \t \t %s \n", jobs[items].id, jobs[items].name);
+		id++;
+		items++;
+		return;
+}
 
 }
 
@@ -530,9 +556,23 @@ void fg(int id){
 		}
 
 	}
-
-
 }
 
+void bg(int id){
+	
+	for(int i = 0; i < 100; i++){
+		if (jobs[i].id == id){
+			kill(SIGCONT, jobs[i-1].jobPid);
+			
+			jobs[i-1].status = 1;	
+			printf("[%d]+ %s \n", jobs[i-1].id, strcat(jobs[i-1].name, " &"));
+			break;
+			
+		}
+	
+
+	}
+
+}
 
 
