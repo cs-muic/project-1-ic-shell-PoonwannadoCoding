@@ -24,6 +24,11 @@ int readLines(char *, char **);
 void handle_sigint(int);
 int reDir(char *);
 void addJobs(pid_t , char*);
+void deleteJobs(int);
+void handle_child(int);
+void jobDone(pid_t, int);
+void clearJob(void);
+void printJob(void);
 
 // VARIABLE
 pid_t pid;
@@ -36,6 +41,7 @@ int isBg;
 int bgIndex;
 int items;
 int id = 1;
+int recieve;
 struct sigaction new_action, old_action, fg_action, bg_action;
 
 
@@ -47,7 +53,7 @@ struct sigaction new_action, old_action, fg_action, bg_action;
 typedef struct bg{
 	int id;
 	char name[MAX_CMD_BUFFER];
-	//int status;
+	int status;
 	pid_t jobPid;
 } job_list;
 
@@ -60,26 +66,32 @@ int main(int argc, char *argv[]) {
 	char history[MAX_CMD_BUFFER];
 	int active = 1;
 	int i = 0;
-	
+	cpid = getpid();
+	new_action.sa_handler = handle_sigint;
+	old_action.sa_handler = SIG_IGN;
+	fg_action.sa_handler = handle_child; 
+
+	sigemptyset(&new_action.sa_mask);
+	new_action.sa_flags = 0;
+	sigaction(SIGCHLD, &fg_action, NULL);
+	sigaction(SIGINT, &new_action, NULL);
+	sigaction(SIGTSTP, &new_action, NULL);
+	sigaction(SIGTTIN, &old_action, NULL);
+	sigaction(SIGTTOU, &old_action, NULL);
+
+	//printf("cpid %d \n", cpid);	
 	printf("Starting IC shell\n");
     while (active) {
 
-		new_action.sa_handler = handle_sigint;
-		sigemptyset(&new_action.sa_mask);
-		new_action.sa_flags = 0;
-
-		sigaction(SIGINT, NULL , &old_action);
-		if (old_action.sa_handler != SIG_IGN){
-			sigaction(SIGINT, &new_action, NULL);
+		if (isBg == 1){
+			isBg = 0;
+			continue;
 		}
-
-		sigaction(SIGTSTP, NULL, &old_action);
-		if (old_action.sa_handler != SIG_IGN){
-			sigaction(SIGTSTP, &new_action, NULL);
-		}
-
-		while(waitpid(-1, &sigs, WNOHANG) > 0){}
 		
+		
+		clearJob();
+
+		while (waitpid(-1, &sigs, WNOHANG) > 0) {}
 		
         printf("icsh $ ");
 
@@ -99,13 +111,14 @@ int main(int argc, char *argv[]) {
 			fclose(textFile);
 		
 			strcpy(buffer, total[i]);
-			i++;
-			
+			i++;	
 		}
 
 		else{
 			fgets(buffer, 255, stdin);	
 		}
+
+		if(strcmp(buffer, "\n") == 0) continue;
 	
 
 		if (strcmp(buffer, "!!\n") != 0 && strcmp(buffer, "\n") != 0){
@@ -113,10 +126,14 @@ int main(int argc, char *argv[]) {
 			
 		}
 
-		if (strcmp(jobs[0].name, "") != 0){
-			memset(history, 0, 255);
+		if (recieve){
+			memset(buffer, 0, 255);
+			recieve = 0;
+			printf("\n");
+			continue;
+
 		}
-		
+
 		
 		rec = splitToken(buffer, MAX_TOKEN);
 
@@ -147,11 +164,15 @@ int main(int argc, char *argv[]) {
 			active = command(rec, history);
 			
 		}
+		//clearJob();
 		pid = 0;
+	
+	
 		
 		
 		
 	}
+	
 	fflush(stdin);
 	return 0;
 }
@@ -163,6 +184,7 @@ char ** splitToken(char * args, int limit){
 	int index = 0;
 	char ** tokens = malloc(MAX_TOKEN * sizeof(char *));
 	char * token;
+
 	//printf("%s \n", args);
 	args[strcspn(args, "\n")] = 0;
 	token = strtok(args, " ");
@@ -207,8 +229,44 @@ char ** splitToken(char * args, int limit){
 	return tokens;
 }
 
+void printJob(){
+	for(int i = 0; i < items; i++){
+		if (items - i == 2){
+			if (jobs[i].status == 1){
+				printf("[%d]- Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+			}
+			else{
+				printf("[%d]- Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+			}
+		
+		}
+		else if(items -i == 1){
+			if (jobs[i].status == 1){
+				printf("[%d]+ Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+			
+			}
+			else{
+				printf("[%d]+ Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+				
+			}
+
+		} else {
+			if (jobs[i].status == 1){
+				printf("[%d] Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+			}
+			else {
+				printf("[%d] Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+			}
+		}
+	}
+
+
+}
+
 void handle_sigint(int sig){
 	sigs = sig;
+
+	//while (waitpid(-1, &sigs, 0)) {}
 
 	//printf("sig => %d \n", sig);
 	if (sig == SIGTSTP && pid){
@@ -220,18 +278,11 @@ void handle_sigint(int sig){
 	
 	else if (sig == SIGINT && pid){
 		kill(pid, SIGINT);
-		waitpid(pid, &sigs, 0);
+		//waitpid(-1, &sigs, 0);
 		printf("\n");
+		return;
 	}
-	else if(sig == SIGCHLD && pid){
-		//printf("hmm => %s \n", jobs[items].name);
-		char * jobName = jobs[items-1].name;
-		jobName[strcspn(jobName, "&")] = 0;
-		printf("[%d]+  Done \t \t \t  %s \n", jobs[items-1].id, jobName);
-		isBg = 0;
-		pid = 0;
-		
-	}
+	printf("\n");
 
 	
 	
@@ -262,6 +313,10 @@ int command(char ** args, char * buffer){
 		}
 		printf("\n");
 		
+		return 1;
+	}
+	else if (strcmp(args[0], "jobs") == 0){
+		printJob();
 		return 1;
 	}
 
@@ -319,60 +374,67 @@ int reDir(char * arg){
 int exe(char * command){
 	char * cpCommand;
 	cpCommand = strdup(command);
-//	sigset_t new_set, old_set;
+	
+	sigset_t new_set;
+	sigemptyset(&new_set);
+	sigaddset(&new_set, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &new_set, NULL);
+	pid = fork();
 	
 	char ** result;
 	
 	if (posFIle > 0 || isBg > 0){
-		result = splitToken(command, posFIle-1);
-	
-		
+		result = splitToken(command, posFIle-1);	
 	}
 	else {
 		result = splitToken(command, MAX_TOKEN);
-		
 	}
 	
-	if ((pid = fork())< 0){
+	if (pid< 0){
 	
-		perror("Fork failed");
-		
+		perror("Fork failed");	
 		exit(1);
 		
 	}
-	if(!pid){
-		setpgid(0, 0);
-		status = execvp(result[0], result);
+	if(pid == 0){
 
+		sigprocmask(SIG_UNBLOCK, &new_set, NULL);
+		setpgid(0, 0);
+		tcsetpgrp(0, getpid());
+		if (isBg == 1){
+			tcsetpgrp(0, cpid);
+		}
+		status = execvp(result[0], result);
 		if (status < 0 && sigs == 0){
-			
 			printf("\nBad command \n");
 		}
 		exit(1);
 	}
-	if(pid && isBg == 0){
-		waitpid(pid, &status, 0);
-	}
-	if(pid && isBg == 1){
+	
+	else {
+		setpgid(pid, pid);
+		tcsetpgrp(0, pid);
+		
+		if (isBg == 1){
+			addJobs(pid, cpCommand);
+		}
+		
+		sigprocmask(SIG_UNBLOCK, &new_set, NULL);
 
-		fg_action.sa_handler = SIG_IGN;
-		bg_action.sa_handler = handle_sigint; 
-		sigaction(SIGTTIN, &fg_action, NULL);
-		sigaction(SIGTTOU, &fg_action, NULL);
-		sigaction(SIGCHLD, &bg_action, NULL);
-		
-		setpgid(0, 0);//set group id to foreground
-		//printf("%d \n", pid);
-		//printf("%s \n", cpCommand);
-		addJobs(pid, cpCommand);
-			
+		if (isBg == 0){
+			waitpid(pid, &status, WUNTRACED);
+			if (WIFSIGNALED(status)){
+				printf("\n");
+			}
+
+			if (WIFSTOPPED(status)){
+
+				printf("MEEP \n");
+			}
+		}
 		tcsetpgrp(0, cpid);
-		//waitpid(pid, NULL, 0);
-		
-		//tcsetpgrp(0, cpid);
-		isBg = 0;
-		
 	}
+	//sigprocmask(SIG_SETMASK, &old_set, NULL);
 	free(cpCommand);
 	return 1;
 
@@ -385,13 +447,64 @@ void addJobs(pid_t ppid, char * cmp){
 	//jobs[items].name = command;
 	//printf("added => %s\n", jobs[items].name);
 	jobs[items].jobPid = ppid;
+	jobs[items].status = 1;
 	items++;
 	id++;	
 	printf("[%d] %d \n", jobs[items-1].id, jobs[items-1].jobPid);
 
 }
 
+void jobDone(pid_t ppid, int status){
+	for (int i = 0; i < 100; i++){
+		if (jobs[i].jobPid == ppid) {
+			jobs[i].status = status;
+			break;
+		}
+	}
+
+}
+
+
+void deleteJobs(int id){
+	
+	for (int i = id-1; i < 100; i++) {
+		jobs[i].id = jobs[i+1].id-1;
+		strcpy(jobs[i].name, jobs[i+1].name);
+		jobs[i].jobPid = jobs[i+1].jobPid;
+		jobs[i].status = jobs[i+1].status;
+	}
+
+	return;
+
+}
 
 
 
+void handle_child(int sigs){
+
+	int ppid = 0;
+	int status = 0;
+	while ((ppid = waitpid(-1, &status, WNOHANG)) > 0){
+		recieve = 1;
+		jobDone(ppid, 2);
+	}
+
+	return;
+
+}
+
+void clearJob(){
+	for(int i = 0; i < 100; i++){
+
+		if (jobs[i].status == 2){
+			char * commandName = strdup(jobs[i].name);
+			commandName[strcspn(commandName, "&")]=0;
+			printf("[%d]+ Done \t \t \t \t %s \n", jobs[i].id, commandName);
+			deleteJobs(jobs[i].id);
+		}
+		
+	}
+
+
+}
 
