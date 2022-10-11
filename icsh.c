@@ -17,7 +17,7 @@
 #include<fcntl.h>
 
 // FUNCTION
-int command(char **, char *);
+int commands(char **, char *);
 char ** splitToken(char *, int);
 int exe(char *);
 int readLines(char *, char **);
@@ -27,12 +27,13 @@ void addJobs(pid_t , char*);
 void deleteJobs(int);
 void handle_child(int);
 void jobDone(pid_t, int);
-void clearJob(void);
 void printJob(void);
 void fg(int);
 void bg(int);
-
+void clearJob(void);
+void removeChar(char*, char);
 // VARIABLE
+int items;
 pid_t pid;
 pid_t cpid;
 int status;
@@ -41,7 +42,6 @@ int isRedirect;
 int posFIle;
 int isBg;
 int bgIndex;
-int items;
 int id = 1;
 int recieve;
 struct sigaction new_action, old_action, fg_action, bg_action;
@@ -88,13 +88,16 @@ int main(int argc, char *argv[]) {
     while (active) {
 
 		if (isBg == 1){
+			memset(buffer, 0 , 255);
+
 			isBg = 0;
 			continue;
 		}
-		
-		
+			
 		clearJob();
 
+		//memset(history, 0, 255);
+		
 		while (waitpid(-1, &sigs, WNOHANG) > 0) {}
 		
         printf("icsh $ ");
@@ -113,7 +116,6 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			fclose(textFile);
-		
 			strcpy(buffer, total[i]);
 			i++;	
 		}
@@ -121,6 +123,8 @@ int main(int argc, char *argv[]) {
 		else{
 			fgets(buffer, 255, stdin);	
 		}
+			
+		removeChar(buffer, '%');
 
 		if(strcmp(buffer, "\n") == 0) continue;
 	
@@ -138,8 +142,11 @@ int main(int argc, char *argv[]) {
 
 		}
 
-		
-		rec = splitToken(buffer, MAX_TOKEN);
+		char * forSplit = strdup(buffer);
+		rec = splitToken(strdup(forSplit), MAX_TOKEN);
+		free(forSplit);
+		//printf("rec from tok => %s\n", buffer);
+
 
 		if(strcmp(rec[0], "exit") == 0){
 			printf("Bye \n");
@@ -156,20 +163,25 @@ int main(int argc, char *argv[]) {
 
 				printf("Bad command \n");
 			} else {
+				printf("SUS 1 \n");
 				char * preC= strdup(history);
 				char ** prevCommand = splitToken(preC, MAX_TOKEN);
-				active = command(prevCommand, history);
+				active = commands(prevCommand, history);
 				free(preC);
+				free(prevCommand);
 			}
 		}
 
 		else if(strcmp(buffer, "\n") != 0){
-			//printf("SUS 0 \n");
-			active = command(rec, history);
+			//printf("SUS 0 %s \n", history);
+
+			active = commands(rec, history);
 			
-		}
+		 }
+
 		//clearJob();
 		pid = 0;
+		//free(rec);
 	
 	
 		
@@ -196,6 +208,7 @@ char ** splitToken(char * args, int limit){
 		if(token != NULL){
 
 			tokens[index] = token;
+				//strcpy(tokens[index], token);
 
 			if (tokens[index] != NULL){
 				
@@ -218,6 +231,7 @@ char ** splitToken(char * args, int limit){
 			
 		
 		} else{
+			//strcpy(tokens[index], NULL);
 			tokens[index] = NULL;
 		}
 		index ++;
@@ -229,39 +243,67 @@ char ** splitToken(char * args, int limit){
 	
 	}
 	
-	
+	//free(tokens);	
 	return tokens;
+}
+
+
+void clearJob(){
+	for(int i = 0; i < 100; i++){
+
+		if(jobs[i].status == 2){
+
+			char * commandName = strdup(jobs[i].name);
+			commandName[strcspn(commandName, "&")]=0;
+			printf("[%d]+ Done \t \t \t \t %s \n", jobs[i].id, commandName);
+			deleteJobs(jobs[i].id);
+			free(commandName);
+			break;
+		}
+
+	}
+
 }
 
 void printJob(){
 	//printf("WORK? \n");
 	for(int i = 0; i < items; i++){
-		if (items - i == 2){
-			if (jobs[i].status == 1){
-				printf("[%d]- Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+		if (jobs[i].status > 0){
+			if (items - i == 2){
+				if (jobs[i].status == 1){
+					printf("[%d]- Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
 			}
-			else{
-				printf("[%d]- Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
-			}
-		
-		}
-		else if(items -i == 1){
-			if (jobs[i].status == 1){
-				printf("[%d]+ Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
-			
-			}
-			else{
-				printf("[%d]+ Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
-				
-			}
+				else {
 
-		} else {
-			if (jobs[i].status == 1){
-				printf("[%d] Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+					printf("[%d]- Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+
+				}
+			
+		
 			}
-			else {
-				printf("[%d] Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+			else if(items -i == 1){
+				if (jobs[i].status == 1){
+					printf("[%d]+ Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+			
+				}
+				else {
+
+					printf("[%d]+ Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+
+
+				}
+
+			} else {
+				if (jobs[i].status == 1){
+					printf("[%d] Running \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+				} else {
+
+					printf("[%d] Stopped \t \t \t \t %s \n", jobs[i].id, jobs[i].name);
+
+
+				}
 			}
+			
 		}
 	}
 }
@@ -292,11 +334,14 @@ void handle_sigint(int sig){
 }
 
 
-int command(char ** args, char * buffer){
+int commands(char ** args, char * buffer){
 	
-	//printf("buffer => %s\n", buffer);	
+	//printf("buffer => %s\n", args[1]);	
 	buffer[strcspn(buffer, "\n")] = 0;
-	buffer[strcspn(buffer, "%")] = 0;
+	//buffer[strcspn(buffer, "%")] = 0;
+	//
+
+
 	if (args == NULL){
 		return 1;
 	}
@@ -332,19 +377,17 @@ int command(char ** args, char * buffer){
 	}
 	
 	else if (strcmp(args[0], "bg") == 0){
-
+		//printf("id => %s \n", args[1]);
 		bg(atoi(args[1]));
+		free(args);
 		return 1;
 
 	}
 	
-
-
-
 	else {
-		//printf("%s \n", buffer);
+		//printf("sussy =>%s \n", buffer);
 		exe(buffer);
-			
+		return  1;
 	}
 	return 1;
 
@@ -388,7 +431,8 @@ int reDir(char * arg){
 	}
 
 
-	free(used);	
+	//free(used);	
+	//free(split);
 	return 1;
 }
 
@@ -450,7 +494,9 @@ int exe(char * command){
 
 			if (WIFSTOPPED(status)){
 				fromFg = 1;
+				isBg = 1;
 				printf("\n");
+				//printf("pppid => %d \n]", pid);
 				addJobs(pid, cpCommand);
 				//printf("[%d]+ Stopped \t \t \t \t %s \n",jobs[items].id, jobs[items].name);
 			}
@@ -458,6 +504,7 @@ int exe(char * command){
 		tcsetpgrp(0, cpid);
 	}
 	//sigprocmask(SIG_SETMASK, &old_set, NULL);
+	free(result);
 	free(cpCommand);
 	return 1;
 
@@ -473,6 +520,7 @@ void addJobs(pid_t ppid, char * cmp){
 
 	if (fromFg == 0){
 		jobs[items].status = 1;
+		//printf("SUSSY BAGGA \n");
 		printf("[%d] %d \n", jobs[items].id, jobs[items].jobPid);
 		id++;
 		items++;
@@ -481,7 +529,7 @@ void addJobs(pid_t ppid, char * cmp){
 
 	else{
 
-		jobs[items].status = 0;
+		jobs[items].status = 3;
 		fromFg = 0;
 		printf("[%d]+ Stopped \t \t \t %s \n", jobs[items].id, jobs[items].name);
 		id++;
@@ -503,10 +551,9 @@ void jobDone(pid_t ppid, int status){
 
 
 void deleteJobs(int id){
-	
-	for (int i = id-1; i < 100; i++) {
-		items --;
-		jobs[i].id = jobs[i+1].id-1;
+	//printf("WORK HERE IN DELETE \n");
+	for (int i = id-1; i < 100; i++) {	
+		jobs[i].id = jobs[i+1].id;
 		strcpy(jobs[i].name, jobs[i+1].name);
 		jobs[i].jobPid = jobs[i+1].jobPid;
 		jobs[i].status = jobs[i+1].status;
@@ -519,30 +566,24 @@ void deleteJobs(int id){
 
 
 void handle_child(int sigs){
-
+	//printf("\n %d \n", sigs);
 	int ppid = 0;
 	int status = 0;
 	while ((ppid = waitpid(-1, &status, WNOHANG)) > 0){
 		recieve = 1;
-		jobDone(ppid, 2);
+		for(int i = 0; i < 100; i++){
+			if(jobs[i].jobPid == ppid && jobs[i].status > 0){
+				//printf("we done\n");
+				jobDone(ppid, 2);
+				break;
+			}
+		}
 	}
 
 	return;
 
 }
 
-void clearJob(){
-	for(int i = 0; i < 100; i++){
-
-		if (jobs[i].status == 2){
-			char * commandName = strdup(jobs[i].name);
-			commandName[strcspn(commandName, "&")]=0;
-			printf("[%d]+ Done \t \t \t \t %s \n", jobs[i].id, commandName);
-			deleteJobs(jobs[i].id);
-		}
-		
-	}
-}
 
 void fg(int id){
 	int status = 0;
@@ -562,17 +603,35 @@ void bg(int id){
 	
 	for(int i = 0; i < 100; i++){
 		if (jobs[i].id == id){
-			kill(SIGCONT, jobs[i-1].jobPid);
+			//kill(SIGCONT, jobs[i].jobPid);
+			//printf("pid => [%d] \n", jobs[i].jobPid);
+			kill(jobs[i].jobPid, SIGCONT);
 			
-			jobs[i-1].status = 1;	
-			printf("[%d]+ %s \n", jobs[i-1].id, strcat(jobs[i-1].name, " &"));
+			jobs[i].status = 1;	
+			printf("[%d]+ %s \n", jobs[i].id, strcat(jobs[i].name, " &"));
 			break;
 			
 		}
 	
-
 	}
 
 }
 
+void removeChar(char * str, char target){
+	int i, j;
+	int len = strlen(str);
+	for(i =0; i < len; i++){
+		if(str[i] == target){
+			for(j = i; j < len; j++){
+				str[j] = str[j+1];
+			}
+			len--;
+			i--;
+		}
+	}
+
+}
+
+// Nawat has invaded your shell project.
+// There might be bugs, but they're not because of me uwu.
 
