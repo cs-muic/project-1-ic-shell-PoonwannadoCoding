@@ -510,6 +510,7 @@ int exe(char * command){
 		tcsetpgrp(0, cpid);
 	}
 	//sigprocmask(SIG_SETMASK, &old_set, NULL);
+	memset(result, 0, 255);
 	free(result);
 	free(cpCommand);
 	return 1;
