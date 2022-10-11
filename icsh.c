@@ -47,7 +47,6 @@ int recieve;
 struct sigaction new_action, old_action, fg_action, bg_action;
 int fromFg;
 
-
 #define MAX_CMD_BUFFER 255
 #define MAX_LINE_LENGTEH 100
 #define MAX_STRING 255
@@ -355,6 +354,12 @@ int commands(char ** args, char * buffer){
 	}
 
 	else if ( strcmp(args[0], "echo") == 0){
+
+		if (strcmp(args[1], "$?") == 0){
+			printf("%d \n", 0);
+			return 1;
+		}
+
 		printf("%s", args[1]);
 		for(int i = 2; args[i] != NULL; i++){
 			printf(" %s", args[i]);
@@ -390,6 +395,7 @@ int commands(char ** args, char * buffer){
 		return  1;
 	}
 	return 1;
+	memset(buffer, 0, 255);
 
 }
 
@@ -631,7 +637,3 @@ void removeChar(char * str, char target){
 	}
 
 }
-
-// Nawat has invaded your shell project.
-// There might be bugs, but they're not because of me uwu.
-
