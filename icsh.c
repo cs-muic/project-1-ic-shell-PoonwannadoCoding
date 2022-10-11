@@ -357,7 +357,7 @@ int commands(char ** args, char * buffer){
 
 		if (strcmp(args[1], "$?") == 0){
 			printf("%d \n", 0);
-			return 1;
+			
 		}
 
 		printf("%s", args[1]);
@@ -366,11 +366,11 @@ int commands(char ** args, char * buffer){
 		}
 		printf("\n");
 		
-		return 1;
+		
 	}
 	else if (strcmp(args[0], "jobs") == 0){
 		printJob();
-		return 1;
+		
 	
 	}
 
@@ -378,24 +378,25 @@ int commands(char ** args, char * buffer){
 		
 		fg(atoi(args[1]));
 		
-		return 1;
+		
 	}
 	
 	else if (strcmp(args[0], "bg") == 0){
 		//printf("id => %s \n", args[1]);
 		bg(atoi(args[1]));
 		free(args);
-		return 1;
+		
 
 	}
 	
 	else {
 		//printf("sussy =>%s \n", buffer);
 		exe(buffer);
-		return  1;
+		
 	}
 	return 1;
 	memset(buffer, 0, 255);
+	free(buffer);
 
 }
 
